@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Where can I get in 30 min in Paris</title>
+  <meta name="description" content="You might find that some place are closer than you think 👀">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
+  integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
+  crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"
+  integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
+  crossorigin=""></script>
+  <script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous">
+  </script>
+  <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">  
+  <style>
+    html,body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Lato', sans-serif;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+      z-index: 1;
+    }
+
+    .title-container {
+      position: fixed;
+      top: 10px;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      display: flex;
+      z-index: 2;
+    }
+
+    .title {
+      background-color: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 5px;
+      color:black;
+      text-align: center;
+    }
+
+    .headline {
+      font-size: 25px;
+      margin-bottom: 10px;
+    }
+
+    .loading-modal {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      left: 0;
+      display: flex;
+      z-index: 10;
+      background-color: rgba(255,255,255,0.7);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loading-modal.hidden {
+      display: none;
+    }
+
+    .spinner {
+        width: 6rem;
+        height: 6rem;
+        border-style: solid;
+        border-color: rgba(0,0,0,0);
+        border-top-color: #0BBCD6;
+        border-width: 0.3rem 0rem 0rem 0rem;
+        transform: will-change;
+        
+        -webkit-border-radius: 50%;
+            -moz-border-radius: 50%;
+                border-radius: 50%;
+        
+        -webkit-animation: spin 0.5s infinite linear;
+            -moz-animation: spin 0.5s infinite linear;
+            -o-animation: spin 0.5s infinite linear;
+                animation: spin 0.5s infinite linear;
+        }
+
+    @-webkit-keyframes spin {
+        from {-webkit-transform: rotate(0deg);}
+        to   {-webkit-transform: rotate(359deg);}
+    }
+
+    @-moz-keyframes spin {
+    from {-moz-transform: rotate(0deg);}
+    to   {-moz-transform: rotate(359deg);}
+    }
+
+    @-o-keyframes spin {
+    from {-o-transform: rotate(0deg);}
+    to   {-o-transform: rotate(359deg);}
+    }
+
+    @keyframes spin{
+    from {transform: rotate(0deg);}
+    to   {transform: rotate(359deg);}
+    }
+  </style>
+</head>
+<body>
+  <div class="title-container">
+    <div class="title">
+      <div class="headline">Where can I get in 
+        <select class="time-selector">
+          <option value="10">10 min</option>
+          <option value="20">20 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="40">40 min</option>
+          <option value="50">50 min</option>
+          <option value="60">1 hour</option>
+        </select> min in Paris ?</div>
+      <div class="subheadline"><i>Move the cursor to change the starting point</i></div>
+    </div>
+  </div>
+  <div class="loading-modal hidden">
+    <div class="spinner"></div>
+  </div>
+  <div id="map"></div>
+</body>
+<script type="text/javascript">
+  var navitiaToken = '825f841e-4dc1-480a-8616-d041d50dd9cd';
+
+  // Default val
+  var currentLat = 48.846905;
+  var currentLng = 2.377097;
+  var currentMaxTime = 30;
+  callApi(currentLat, currentLng, currentMaxTime);
+
+  var tiles = {
+    url: 'https://korona.geog.uni-heidelberg.de/tiles/roads/x={x}&y={y}&z={z}',
+    attrib: 'Imagery from <a href="http://giscience.uni-hd.de/">GIScience Research Group @ University of Heidelberg</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  };
+
+  // Create a drawable map using Leaflet
+  var map = L.map('map')
+    .setView([currentLat, currentLng], 13)
+    .addLayer(new L.TileLayer(tiles.url, {
+      minZoom: 0,
+      maxZoom: 16,
+      attribution: tiles.attrib
+    }));
+
+  // Add marker to show isochron starting point
+  var marker = L.marker([currentLat, currentLng], {draggable:'true'}).addTo(map);
+
+  // Add layer
+  var isochroneLayer = L.geoJson([]).addTo(map);
+  var geojsonLayer = L.geoJson([]).addTo(map);
+
+  // Add events
+  $('.time-selector').on('change', function() {
+    currentMaxTime = parseInt($(this).val(), 10);
+    callApi(currentLat, currentLng, currentMaxTime);
+  });
+
+  marker.on('dragend', function(event){
+    var marker = event.target;
+    var position = marker.getLatLng();
+    currentLat = position.lat;
+    currentLng = position.lng;
+    callApi(currentLat, currentLng, currentMaxTime);
+  });
+
+  function callApi(lat, lng, maxTime) {
+    callNavitiaApi(lat, lng, maxTime);
+    callNavitiaApiForJourneyIsochrone(lat, lng, maxTime);
+  }
+
+  function drawIsochron(result) {
+    $.each(result.isochrones, function(i, isochrone) {
+      var polygon = isochrone.geojson;
+      isochroneLayer.clearLayers();
+      isochroneLayer.addData(polygon);
+      var newBounds = isochroneLayer.getBounds();
+      map.fitBounds(newBounds);
+    });
+  }
+
+  function drawIsochron(result) {
+    $.each(result.isochrones, function(i, isochrone) {
+      var polygon = isochrone.geojson;
+      isochroneLayer.clearLayers();
+      isochroneLayer.addData(polygon);
+      var newBounds = isochroneLayer.getBounds();
+      map.fitBounds(newBounds);
+    });
+  }
+
+  function setLoading(isLoading) {
+    if(isLoading) {
+      $('.loading-modal').removeClass('hidden');
+    } else {
+      $('.loading-modal').addClass('hidden');
+    }
+    
+  }
+
+  function callNavitiaApiForJourneyIsochrone(lat, lng, maxTime) {
+    setLoading(true);
+    var maxDuration = maxTime * 60;
+    var isochronUrl = 'https://api.navitia.io/v1/coverage/fr-idf/journeys?from=' + lng + ';' + lat + '&max_duration=' + maxDuration;
+
+    $.ajax({
+      type: 'GET',
+      url: isochronUrl,
+      dataType: 'json',
+      headers: {
+        Authorization: 'Basic ' + btoa(navitiaToken)
+      },
+      success: function(data) {
+        setLoading(false);
+        drawJourneyIsochron(data);
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        alert('Error when trying to process isochron: "' + textStatus + '", "' + errorThrown + '"');
+      }
+    });
+  }
+
+  function callNavitiaApi(lat, lng, maxTime) {
+    // Limit isochron duration (required, or may trigger timeout when there is more data)
+    var maxDuration = maxTime * 60;
+    var minDuration = 5 * 60;
+    // Navitia query for this isochron
+    var url = 'https://api.navitia.io/v1/coverage/fr-idf/isochrones?from=' + lng + ';' + lat + '&max_duration=' + maxDuration + '&min_duration=' + minDuration;
+    // Call navitia api
+    $.ajax({
+      type: 'GET',
+      url: url,
+      dataType: "json",
+      headers: {
+        Authorization: 'Basic ' + btoa(navitiaToken)
+      },
+      success: function(data) {
+        drawIsochron(data);
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        alert('Error when trying to process isochron: "' + textStatus + '", "' + errorThrown + '"');
+      }
+    });
+  }
+
+  /**
+ * Display points returned by navitia isochron, and colored red/green depending on journey duration.
+ *
+ * @param {Object} result
+ */
+function drawJourneyIsochron(result) {
+  var isochron = [];
+
+  $.each(result.journeys, function(i, journey) {
+    isochron.push({
+      to: [
+        parseFloat(journey.to.stop_point.coord.lat),
+        parseFloat(journey.to.stop_point.coord.lon)
+      ],
+      duration: journey.duration,
+      data: journey
+    });
+  });
+
+  var geojson = createGeoJsonFromIsochron(isochron);
+
+  drawGeoJson(map, geojson);
+
+  map.on('zoomend', function() {
+    drawGeoJson(map, geojson);
+  });
+}
+
+/**
+ * Create a geoJson object contening all points and their colors.
+ *
+ * @param {Array} isochron
+ *
+ * @returns {Object} GeoJson object
+ */
+function createGeoJsonFromIsochron(isochron) {
+  var geojson = {
+    name: 'Points',
+    type: 'FeatureCollection',
+    features: []
+  };
+
+  $.each(isochron, function(i, point) {
+    geojson.features.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: point.to.reverse()
+      },
+      properties: {
+        color: colorFromDuration(point.duration),
+        journey: point.data
+      }
+    });
+  });
+
+  return geojson;
+}
+
+/**
+ * Create a Leaflet GeoJson layer and append it to the map.
+ * (Remove the last layer if there is any.)
+ *
+ * @param {L.Map} map
+ * @param {Object} geojson
+ */
+function drawGeoJson(map, geojson) {
+  if (null !== geojsonLayer) {
+    map.removeLayer(geojsonLayer);
+  }
+
+  geojsonLayer = L.geoJson(geojson, {
+    style: function(feature) {
+      return {
+        color: feature.properties.color
+      };
+    },
+    pointToLayer: function(feature, latlng) {
+      var raduis = Math.pow(2, map.getZoom()) / 1000;
+
+      return new L.CircleMarker(latlng, {
+        radius: raduis,
+        fillOpacity: 0.6
+      });
+    },
+    onEachFeature: function(feature, layer) {
+      var journey = feature.properties.journey;
+      var duration = Math.floor(journey.duration / 60) + 'min' + (journey.duration % 60) + 's';
+      // var journeyLink = journey.links[0].href.replace('://', '://' + navitiaToken + '@');
+     
+      layer.bindPopup([
+        '<b>' + journey.to.name + '</b>',
+        duration,
+        '<a href="" target="_blank">Itineraries to this point</a>'
+      ].join('<br>'));
+    }
+  });
+
+  map.addLayer(geojsonLayer);
+}
+
+/**
+ * Calculate a color from a duration, from green to red when duration is small/long.
+ *
+ * @param {Integer} duration
+ *
+ * @returns {String}
+ */
+function colorFromDuration(duration) {
+  var color1 = '006800';
+  var color2 = '00e500';
+  var ratio = duration / (currentMaxTime * 60);
+  ratio = Math.pow(ratio, 2); // Apply ratio^2 to have more green.
+  var hex = function(x) {
+    x = x.toString(16);
+    return (x.length === 1) ? '0' + x : x;
+  };
+
+  var r = Math.ceil(parseInt(color1.substring(0, 2), 16) * ratio + parseInt(color2.substring(0, 2), 16) * (1 - ratio));
+  var g = Math.ceil(parseInt(color1.substring(2, 4), 16) * ratio + parseInt(color2.substring(2, 4), 16) * (1 - ratio));
+  var b = Math.ceil(parseInt(color1.substring(4, 6), 16) * ratio + parseInt(color2.substring(4, 6), 16) * (1 - ratio));
+
+  var middle = hex(r) + hex(g) + hex(b);
+
+  return '#' + middle;
+}
+
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-108141916-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-108141916-1');
+</script>
+
+</html>
