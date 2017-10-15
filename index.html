@@ -19,6 +19,11 @@
   </script>
   <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">  
   <style>
+
+    html {
+      font-size: 62.5%;
+    }
+
     html,body {
       height: 100%;
     }
@@ -26,6 +31,13 @@
     body {
       margin: 0;
       font-family: 'Lato', sans-serif;
+      font-size: 1.6rem;
+    }
+
+    @media screen AND (max-width: 640px) { 
+      html {
+        font-size: 8px;
+      }
     }
 
     #map {
@@ -36,7 +48,7 @@
 
     .title-container {
       position: fixed;
-      top: 10px;
+      top: 1rem;
       justify-content: center;
       align-items: center;
       width: 100%;
@@ -47,14 +59,14 @@
 
     .title {
       background-color: rgba(255,255,255,0.9);
-      padding: 10px;
-      border-radius: 5px;
+      padding: 1rem;
+      border-radius: 0.5rem;
       color:black;
       text-align: center;
     }
 
     .headline {
-      font-size: 25px;
+      font-size: 2.5rem;
       margin-bottom: 10px;
     }
 
@@ -282,9 +294,12 @@ function drawJourneyIsochron(result) {
   drawGeoJson(map, geojson);
 
   map.on('zoomend', function() {
+    console.log('zoomend');
     drawGeoJson(map, geojson);
   });
 }
+
+
 
 /**
  * Create a geoJson object contening all points and their colors.
