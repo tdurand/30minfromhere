@@ -363,11 +363,9 @@ function drawGeoJson(map, geojson) {
       var journey = feature.properties.journey;
       var duration = Math.floor(journey.duration / 60) + 'min' + (journey.duration % 60) + 's';
       // var journeyLink = journey.links[0].href.replace('://', '://' + navitiaToken + '@');
-     
       layer.bindPopup([
         '<b>' + journey.to.name + '</b>',
-        duration,
-        '<a href="" target="_blank">Itineraries to this point</a>'
+        duration
       ].join('<br>'));
     }
   });
