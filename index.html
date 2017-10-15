@@ -42,6 +42,7 @@
       width: 100%;
       display: flex;
       z-index: 2;
+      pointer-events: none;
     }
 
     .title {
@@ -144,17 +145,17 @@
   callApi(currentLat, currentLng, currentMaxTime);
 
   var tiles = {
-    url: 'https://korona.geog.uni-heidelberg.de/tiles/roads/x={x}&y={y}&z={z}',
-    attrib: 'Imagery from <a href="http://giscience.uni-hd.de/">GIScience Research Group @ University of Heidelberg</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    url: 'https://{s}.tile.openstreetmap.se/hydda/full/{z}/{x}/{y}.png',
+    attribution: 'Tiles courtesy of <a href="http://openstreetmap.se/" target="_blank">OpenStreetMap Sweden</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   };
 
   // Create a drawable map using Leaflet
   var map = L.map('map')
     .setView([currentLat, currentLng], 13)
     .addLayer(new L.TileLayer(tiles.url, {
-      minZoom: 0,
-      maxZoom: 16,
-      attribution: tiles.attrib
+      minZoom: 11,
+      maxZoom: 15,
+      attribution: tiles.attribution
     }));
 
   // Add marker to show isochron starting point
